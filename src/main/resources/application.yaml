@@ -1,9 +1,14 @@
 spring:
-    r2dbc:
-        url: r2dbc:postgresql://${DB_HOST:localhost}:5450/
-        username: ${DB_USERNAME:postgres}
-        password: ${DB_PASSWORD:postgres}
-    flyway:
-        url: jdbc:postgresql://localhost:5450/
-        user: ${DB_USERNAME:postgres}
-        passord: ${DB_PASSWORD:postgres}
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/
+    username: postgres
+    password: password
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/postgres
+    user: postgres
+    password: password
+    locations: filesystem:src/main/resources/db/migration
+logging:
+  level:
+    org.flywaydb.core.internal.command: debug
