@@ -6,6 +6,5 @@ import reactor.core.publisher.Mono
 import java.util.UUID
 
 interface UserRepository : CoroutineCrudRepository<User, UUID> {
-    fun findUserById(id: UUID): Mono<User>
-    fun findUserByDocument(document: String): Mono<User>
+    fun findByDocument(document: String): Mono<User>
 }
