@@ -5,6 +5,7 @@ import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
 import com.paymentSimple.repositorys.TransactionsRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
 
@@ -24,7 +25,7 @@ class TransactionServiceImpl(private val userService: UserService, private val t
         }
         return true
     }
-
+@Transactional
     override suspend fun send(transaction: Transactions): Transactions {
         val sender = userService.findUserById(transaction.senderID)
         sender?: throw Exception("User not found")
