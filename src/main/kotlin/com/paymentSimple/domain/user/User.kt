@@ -1,5 +1,6 @@
 package com.paymentSimple.domain.user
 
+import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 import java.math.BigDecimal
 import java.time.Instant
@@ -7,6 +8,7 @@ import java.util.UUID
 
 @Table("users")
 data class User(
+    @Id
     val id: UUID? = null,
     val firstName: String,
     val lastName: String,
