@@ -1,6 +1,5 @@
 package com.paymentSimple.domain.transaction
 
-import org.springframework.boot.autoconfigure.security.SecurityProperties.User
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Table
 import java.math.BigDecimal
@@ -15,4 +14,4 @@ data class Transactions(
     val receiverID: UUID,
     val createdAt: Instant,
     val updatedAt: Instant,
-    )
+)
