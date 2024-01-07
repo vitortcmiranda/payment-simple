@@ -1,7 +1,10 @@
 package com.paymentSimple.common
 
+import com.paymentSimple.api.TransactionRequest
+import com.paymentSimple.api.TransactionResponse
 import com.paymentSimple.api.UserRequest
 import com.paymentSimple.api.UserResponse
+import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
 import java.math.BigDecimal
@@ -40,3 +43,13 @@ fun com.paymentSimple.api.UserType.toDomain(): UserType = when (this) {
     com.paymentSimple.api.UserType.COMMON -> UserType.COMMON
     com.paymentSimple.api.UserType.MERCHANT -> UserType.MERCHANT
 }
+
+fun Transactions.toModel(): TransactionResponse = TransactionResponse(amount = this.amount, status = true)
+
+fun TransactionRequest.toModel(): Transactions = Transactions(
+    amount = this.value,
+    receiverID = this.payee,
+    senderID = this.payer,
+    createdAt = Instant.now(),
+    updatedAt = Instant.now()
+)
