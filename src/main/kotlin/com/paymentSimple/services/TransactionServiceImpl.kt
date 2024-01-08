@@ -1,8 +1,10 @@
 package com.paymentSimple.services
 
+import com.paymentSimple.api.MessageApproval
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.UserType
-import com.paymentSimple.repositories.TransactionsRepository
+import com.paymentSimple.external.TransactionValidatorRepository
+import com.paymentSimple.repositorys.TransactionsRepository
 import kotlinx.coroutines.coroutineScope
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -13,7 +15,8 @@ import org.springframework.web.server.ResponseStatusException
 @Service
 class TransactionServiceImpl(
     private val userService: UserService,
-    private val transactionsRepository: TransactionsRepository
+    private val transactionsRepository: TransactionsRepository,
+    private val transactionValidatorRepository: TransactionValidatorRepository
 ) : TransactionService {
     override suspend fun validateTransaction(transaction: Transactions): Boolean = coroutineScope {
         userService.findUserById(transaction.receiverID) ?: throw ResponseStatusException(
@@ -21,6 +24,17 @@ class TransactionServiceImpl(
             "Receiver not found"
         )
         validateSender(transaction)
+
+        val approvalResponse: Boolean =
+            transactionValidatorRepository.validateTransaction(transaction)!!.message === MessageApproval.Autorizado
+
+        if (!approvalResponse) {
+            throw ResponseStatusException(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "Transaction Not Allowed by external approval"
+            )
+        }
+
         return@coroutineScope true
     }
 
