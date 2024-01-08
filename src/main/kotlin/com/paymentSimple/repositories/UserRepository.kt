@@ -1,4 +1,4 @@
-package com.paymentSimple.repositorys
+package com.paymentSimple.repositories
 
 import com.paymentSimple.domain.user.User
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository

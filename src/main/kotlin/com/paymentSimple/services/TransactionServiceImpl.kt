@@ -2,7 +2,7 @@ package com.paymentSimple.services
 
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.UserType
-import com.paymentSimple.repositorys.TransactionsRepository
+import com.paymentSimple.repositories.TransactionsRepository
 import kotlinx.coroutines.coroutineScope
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service

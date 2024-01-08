@@ -1,11 +1,9 @@
 package com.paymentSimple.services
 
 import com.paymentSimple.domain.user.User
-import com.paymentSimple.repositorys.UserRepository
-import kotlinx.coroutines.reactive.awaitFirstOrNull
+import com.paymentSimple.repositories.UserRepository
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
-import java.time.Instant
 import java.util.UUID
 
 @Service
