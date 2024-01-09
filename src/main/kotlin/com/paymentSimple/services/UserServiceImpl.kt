@@ -16,4 +16,7 @@ class UserServiceImpl(private val userRepository: UserRepository) : UserService 
         userRepository.save(user)
 
     override suspend fun findUserById(id: UUID): User? = userRepository.findById(id)
+    override suspend fun updateUserBalance(user: User): User {
+        return userRepository.save(user)
+    }
 }
