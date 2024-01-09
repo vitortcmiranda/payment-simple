@@ -66,32 +66,33 @@ class TransactionServiceImpl(
     }
 
     @Transactional
-    override suspend fun send(transaction: Transactions): Transactions = validateTransaction(transaction).let { users ->
-        coroutineScope {
+    override suspend fun send(transaction: Transactions) =
+        validateTransaction(transaction).let { users ->
+            coroutineScope {
 
-            val saveSender = async {
-                userService.updateUserBalance(
-                    users[0].copy(
-                        balance = users[0].balance - transaction.amount,
-                        updatedAt = Instant.now()
+                val saveSender = async {
+                    userService.updateUserBalance(
+                        users[0].copy(
+                            balance = users[0].balance - transaction.amount,
+                            updatedAt = Instant.now()
+                        )
                     )
-                )
-            }
-            val saveReceiver = async {
-                userService.updateUserBalance(
-                    users[1].copy(
-                        balance = users[1].balance + transaction.amount,
-                        updatedAt = Instant.now()
+                }
+                val saveReceiver = async {
+                    userService.updateUserBalance(
+                        users[1].copy(
+                            balance = users[1].balance + transaction.amount,
+                            updatedAt = Instant.now()
+                        )
                     )
-                )
+                }
+                val saveTransaction = async { transactionsRepository.save(transaction) }
+
+                val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
+                launch { notificationSenderRepository.sendNotification(users) }
+
+                return@coroutineScope result[2] as Transactions
             }
-            val saveTransaction = async { transactionsRepository.save(transaction) }
-
-            val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
-            launch { notificationSenderRepository.sendNotification(users) }
-
-            return@coroutineScope result[2] as Transactions
         }
-    }
 
 }

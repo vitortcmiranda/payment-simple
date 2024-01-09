@@ -11,7 +11,7 @@ import java.math.BigDecimal
 import java.time.Instant
 
 
-fun User.toResponse(): UserResponse? =
+fun User.toResponse(): UserResponse =
     UserResponse(
         id = id!!,
         firstName = firstName,
@@ -44,12 +44,12 @@ fun com.paymentSimple.api.UserType.toDomain(): UserType = when (this) {
     com.paymentSimple.api.UserType.MERCHANT -> UserType.MERCHANT
 }
 
-fun Transactions.toModel(): TransactionResponse = TransactionResponse(amount = this.amount, status = true)
+fun Transactions.toModel(): TransactionResponse =
+    TransactionResponse(amount = this.amount, status = true, createdAt = Instant.now())
 
 fun TransactionRequest.toModel(): Transactions = Transactions(
     amount = this.value,
     receiverID = this.payee,
     senderID = this.payer,
-    createdAt = Instant.now(),
-    updatedAt = Instant.now()
+    createdAt = Instant.now()
 )

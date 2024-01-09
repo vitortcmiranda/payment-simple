@@ -13,5 +13,5 @@ data class Transactions(
     val senderID: UUID,
     val receiverID: UUID,
     val createdAt: Instant,
-    val updatedAt: Instant,
+    val updatedAt: Instant = Instant.now(),
 )
