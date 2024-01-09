@@ -10,6 +10,7 @@ import com.paymentSimple.repositories.TransactionsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,27 +25,30 @@ class TransactionServiceImpl(
     private val transactionValidatorRepository: TransactionValidatorRepository,
     private val notificationSenderRepository: NotificationSenderRepository
 ) : TransactionService {
-    override suspend fun validateTransaction(transaction: Transactions): List<User> = coroutineScope {
-        val receiver = userService.findUserById(transaction.receiverID) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Receiver not found"
-        )
-        val sender = validateSender(transaction)
+    override suspend fun validateTransaction(transaction: Transactions): List<User> {
+        val validations = coroutineScope {
+            val receiver = async { userService.findUserById(transaction.receiverID) }
+            val sender = async { validateSender(transaction) }
+            val approvalResponse =
+                async { transactionValidatorRepository.validateTransaction(transaction)!!.message }
 
-        val approvalResponse: Boolean =
-            transactionValidatorRepository.validateTransaction(transaction)!!.message === MessageApproval.Autorizado
+            awaitAll(receiver, sender, approvalResponse)
+        }
 
-        if (!approvalResponse) {
+        val externalApproval: Boolean = (validations[2] as MessageApproval) === MessageApproval.Autorizado
+        if (!externalApproval) {
             throw ResponseStatusException(
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "Transaction Not Allowed by external approval"
             )
         }
 
-        return@coroutineScope listOf(sender, receiver)
+
+        return listOf(validations[0] as User, validations[1] as User)
+
     }
 
-    suspend fun validateSender(transaction: Transactions): User = coroutineScope {
+    suspend fun validateSender(transaction: Transactions): User {
         val sender = userService.findUserById(transaction.senderID) ?: throw ResponseStatusException(
             HttpStatus.NOT_FOUND,
             "User not found"
@@ -57,13 +61,14 @@ class TransactionServiceImpl(
         if (hasLessBalanceThanTransaction) {
             throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "User doesn't have sufficient fundss")
         }
-        return@coroutineScope sender
+        return sender
 
     }
 
     @Transactional
     override suspend fun send(transaction: Transactions): Transactions = validateTransaction(transaction).let { users ->
         coroutineScope {
+
             val saveSender = async {
                 userService.updateUserBalance(
                     users[0].copy(
@@ -80,13 +85,12 @@ class TransactionServiceImpl(
                     )
                 )
             }
-            awaitAll(saveSender, saveReceiver)
+            val saveTransaction = async { transactionsRepository.save(transaction) }
 
+            val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
+            launch { notificationSenderRepository.sendNotification(users) }
 
-            val savedTransaction = async { transactionsRepository.save(transaction) }.await()
-            async { notificationSenderRepository.sendNotification(users) }
-
-            return@coroutineScope savedTransaction
+            return@coroutineScope result[2] as Transactions
         }
     }
 
