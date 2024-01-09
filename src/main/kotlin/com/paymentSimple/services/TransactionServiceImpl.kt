@@ -4,8 +4,11 @@ import com.paymentSimple.api.MessageApproval
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
+import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.external.TransactionValidatorRepository
 import com.paymentSimple.repositories.TransactionsRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -18,7 +21,8 @@ import java.time.Instant
 class TransactionServiceImpl(
     private val userService: UserService,
     private val transactionsRepository: TransactionsRepository,
-    private val transactionValidatorRepository: TransactionValidatorRepository
+    private val transactionValidatorRepository: TransactionValidatorRepository,
+    private val notificationSenderRepository: NotificationSenderRepository
 ) : TransactionService {
     override suspend fun validateTransaction(transaction: Transactions): List<User> = coroutineScope {
         val receiver = userService.findUserById(transaction.receiverID) ?: throw ResponseStatusException(
@@ -58,12 +62,32 @@ class TransactionServiceImpl(
     }
 
     @Transactional
-    override suspend fun send(transaction: Transactions): Transactions =
-        validateTransaction(transaction).let { users ->
-            userService.updateUserBalance(users[0].copy(balance = users[0].balance - transaction.amount, updatedAt = Instant.now()))
-            userService.updateUserBalance(users[1].copy(balance = users[1].balance + transaction.amount, updatedAt = Instant.now()))
-            return transactionsRepository.save(transaction)
-        }
+    override suspend fun send(transaction: Transactions): Transactions = validateTransaction(transaction).let { users ->
+        coroutineScope {
+            val saveSender = async {
+                userService.updateUserBalance(
+                    users[0].copy(
+                        balance = users[0].balance - transaction.amount,
+                        updatedAt = Instant.now()
+                    )
+                )
+            }
+            val saveReceiver = async {
+                userService.updateUserBalance(
+                    users[1].copy(
+                        balance = users[1].balance + transaction.amount,
+                        updatedAt = Instant.now()
+                    )
+                )
+            }
+            awaitAll(saveSender, saveReceiver)
 
+
+            val savedTransaction = async { transactionsRepository.save(transaction) }.await()
+            async { notificationSenderRepository.sendNotification(users) }
+
+            return@coroutineScope savedTransaction
+        }
+    }
 
 }
