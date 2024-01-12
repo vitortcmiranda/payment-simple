@@ -6,10 +6,12 @@ import com.paymentSimple.repositories.UserRepository
 import com.paymentSimple.services.UserService
 import com.paymentSimple.services.UserServiceImpl
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import reactor.core.publisher.Mono
@@ -21,6 +23,15 @@ import java.util.UUID
 class UserServiceTests {
     private val userRepository: UserRepository = mockk()
     private val userService: UserService = UserServiceImpl(userRepository)
+
+    @Test
+    fun `should find user by id when user exists`() = runBlocking {
+        val user = buildUser()
+        coEvery { userRepository.findById(any()) } returns user
+        val result = userService.findUserById(UUID.randomUUID())
+        assert(result == user)
+        coVerify(exactly = 1) { userService.findUserById(any()) }
+    }
 
     @Test
     fun `find user by document should return user when document exists`() = runBlocking {
@@ -36,12 +47,22 @@ class UserServiceTests {
     }
 
     @Test
-    fun `createUser should save the user`() = runTest {
+    fun `should save the user`() = runTest {
         val userToSave = buildUser()
         coEvery { userRepository.save(userToSave) } returns userToSave
         val result = userService.createUser(userToSave)
 
         assert(result == userToSave)
+        coVerify(exactly = 1) { userRepository.save(any()) }
+    }
+
+    @Test
+    fun `should return empty when no user was found`() = runBlocking {
+        coEvery { userRepository.findById(any()) } returns null
+        val result = userService.findUserById(UUID.randomUUID())
+        assertNull(result, "Result should be null when user is not found")
+        coVerify(exactly = 1) { userRepository.findById(any()) }
+
     }
 
     private fun buildUser(): User =
