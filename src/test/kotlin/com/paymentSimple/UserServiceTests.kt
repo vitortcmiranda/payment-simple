@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import reactor.core.publisher.Mono
@@ -29,16 +30,17 @@ class UserServiceTests {
 
         val result = userService.findUserByDocument(document).block()
         assert(result == expectedUser)
-        verify {
+        verify(exactly = 1) {
             userRepository.findByDocument(any())
         }
     }
 
     @Test
-    fun `createUser should save the user`() = runBlocking {
+    fun `createUser should save the user`() = runTest {
         val userToSave = buildUser()
         coEvery { userRepository.save(userToSave) } returns userToSave
         val result = userService.createUser(userToSave)
+
         assert(result == userToSave)
     }
 
