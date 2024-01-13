@@ -19,6 +19,5 @@ class UserController(private val userService: UserService) {
     @PostMapping("")
     suspend fun createUser(@RequestBody userRequest: UserRequest): UserResponse =
         userService.createUser(userRequest.toDomain()).toResponse()
-            ?: throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error during user creation.")
 
 }

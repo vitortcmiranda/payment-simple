@@ -11,7 +11,8 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertNull
+import net.sf.jsqlparser.util.validation.metadata.DatabaseException
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import reactor.core.publisher.Mono
@@ -57,12 +58,41 @@ class UserServiceTests {
     }
 
     @Test
-    fun `should return empty when no user was found`() = runBlocking {
+    fun `should return empty when no user was found by id`() = runBlocking {
         coEvery { userRepository.findById(any()) } returns null
         val result = userService.findUserById(UUID.randomUUID())
         assertNull(result, "Result should be null when user is not found")
         coVerify(exactly = 1) { userRepository.findById(any()) }
+    }
 
+    @Test
+    fun `should return empty when no user was found by document`() = runBlocking {
+        coEvery { userRepository.findByDocument(any()) } returns Mono.empty()
+        val result = userService.findUserByDocument(UUID.randomUUID().toString()).block()
+        assertNull(result, "Result should be null when user is not found")
+        coVerify(exactly = 1) { userRepository.findByDocument(any()) }
+    }
+
+    @Test
+    fun `should update user balance`() = runBlocking {
+        val userToSave = buildUser()
+        val expected = userToSave.copy(balance = BigDecimal.TEN)
+        coEvery { userRepository.save(any()) } returns expected
+        val result = userService.updateUserBalance(userToSave.copy(balance = BigDecimal.TEN))
+        assert(result == expected)
+        coVerify(exactly = 1) { userRepository.save(expected) }
+    }
+
+    @Test
+    fun `should update give an error when user not found while updating`() = runBlocking {
+        val userToSave = buildUser()
+        val expected = userToSave.copy(balance = BigDecimal.TEN)
+        coEvery { userRepository.save(any()) } throws DatabaseException("User not exists")
+
+        assertThrowsExactly(DatabaseException::class.java) {
+            runBlocking { userService.updateUserBalance(userToSave.copy(balance = BigDecimal.TEN)) }
+        }
+        coVerify(exactly = 1) { userRepository.save(expected) }
     }
 
     private fun buildUser(): User =
