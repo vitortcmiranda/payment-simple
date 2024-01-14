@@ -5,5 +5,5 @@ data class TransactionApprovalResponse(
 )
 
 enum class MessageApproval {
-    Autorizado
+    Autorizado, Desautorizado
 }

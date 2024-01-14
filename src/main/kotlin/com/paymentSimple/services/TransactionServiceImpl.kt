@@ -48,18 +48,20 @@ class TransactionServiceImpl(
 
     }
 
-    suspend fun validateSender(transaction: Transactions): User {
-        val sender = userService.findUserById(transaction.senderID) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "User not found"
-        )
+    private suspend fun validateSender(transaction: Transactions): User {
+        val sender =
+            userService.findUserByIdAndType(transaction.senderID, UserType.COMMON)
+                ?: throw ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "User not found"
+                )
         val isMerchantUser = sender.userType === UserType.MERCHANT
         val hasLessBalanceThanTransaction = sender.balance < transaction.amount
         if (isMerchantUser) {
             throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Merchant user not allowed to send money")
         }
         if (hasLessBalanceThanTransaction) {
-            throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "User doesn't have sufficient fundss")
+            throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "User doesn't have sufficient funds")
         }
         return sender
 

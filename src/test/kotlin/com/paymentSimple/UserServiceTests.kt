@@ -1,7 +1,7 @@
 package com.paymentSimple
 
+import com.paymentSimple.Common.Companion.buildUser
 import com.paymentSimple.domain.user.User
-import com.paymentSimple.domain.user.UserType
 import com.paymentSimple.repositories.UserRepository
 import com.paymentSimple.services.UserService
 import com.paymentSimple.services.UserServiceImpl
@@ -12,13 +12,14 @@ import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import net.sf.jsqlparser.util.validation.metadata.DatabaseException
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.test.context.SpringBootTest
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
-import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 @SpringBootTest
 class UserServiceTests {
@@ -89,23 +90,67 @@ class UserServiceTests {
         val expected = userToSave.copy(balance = BigDecimal.TEN)
         coEvery { userRepository.save(any()) } throws DatabaseException("User not exists")
 
-        assertThrowsExactly(DatabaseException::class.java) {
+        val exception = assertThrows<DatabaseException> {
             runBlocking { userService.updateUserBalance(userToSave.copy(balance = BigDecimal.TEN)) }
         }
+        assertEquals("User not exists", exception.message)
         coVerify(exactly = 1) { userRepository.save(expected) }
     }
 
-    private fun buildUser(): User =
-        User(
-            userType = UserType.COMMON,
-            id = UUID.randomUUID(),
-            email = "teste@email.com",
-            balance = BigDecimal.ZERO,
-            updatedAt = Instant.now(),
-            createdAt = Instant.now(),
-            lastName = "lastName",
-            firstName = "firstName",
-            password = "password",
-            document = "123456789"
-        )
+    @Test
+    fun `should return user by type`() = runBlocking {
+        val user = buildUser()
+        coEvery { userRepository.findByIdAndType(user.id!!, user.userType) } returns Mono.just(user)
+
+        val result = userService.findUserByIdAndType(user.id!!, user.userType)
+
+        assertEquals(user, result)
+        coVerify(exactly = 1) {
+            userRepository.findByIdAndType(user.id!!, user.userType)
+        }
+
+    }
+
+    @Test
+    fun `should return null when no user by type was found`() = runBlocking {
+        val user = buildUser()
+        coEvery { userRepository.findByIdAndType(user.id!!, user.userType) } returns Mono.empty<User>()
+
+        val result = userService.findUserByIdAndType(user.id!!, user.userType)
+
+        assertEquals(null, result)
+        coVerify(exactly = 1) {
+            userRepository.findByIdAndType(user.id!!, user.userType)
+        }
+
+    }
+
+    @Test
+    fun `should return null when no user was found by id`() = runBlocking {
+        val user = buildUser()
+        coEvery { userRepository.findById(user.id!!) } returns null
+
+        val result = userService.findUserById(user.id!!)
+
+        assertEquals(null, result)
+        coVerify(exactly = 1) {
+            userRepository.findById(user.id!!)
+        }
+
+    }
+
+    @Test
+    fun `should return null when no user was found by document`() = runBlocking {
+        val user = buildUser()
+        coEvery { userRepository.findByDocument(user.document) } returns Mono.empty<User>()
+
+        val result = userService.findUserByDocument(user.document)
+        val expected = Mono.empty<User>()
+        assertEquals(expected, result)
+        coVerify(exactly = 1) {
+            userRepository.findByDocument(user.document)
+        }
+
+    }
+
 }
