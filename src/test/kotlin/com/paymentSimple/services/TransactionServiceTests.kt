@@ -1,4 +1,4 @@
-package com.paymentSimple
+package com.paymentSimple.services
 
 import com.paymentSimple.Common.Companion.buildTransaction
 import com.paymentSimple.Common.Companion.buildUser
@@ -8,9 +8,6 @@ import com.paymentSimple.domain.user.UserType
 import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.external.TransactionValidatorRepository
 import com.paymentSimple.repositories.TransactionsRepository
-import com.paymentSimple.services.TransactionService
-import com.paymentSimple.services.TransactionServiceImpl
-import com.paymentSimple.services.UserService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

@@ -1,10 +1,8 @@
-package com.paymentSimple
+package com.paymentSimple.services
 
 import com.paymentSimple.Common.Companion.buildUser
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.repositories.UserRepository
-import com.paymentSimple.services.UserService
-import com.paymentSimple.services.UserServiceImpl
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
