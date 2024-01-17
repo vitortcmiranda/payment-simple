@@ -1,5 +1,7 @@
 package com.paymentSimple
 
+import com.paymentSimple.api.TransactionRequest
+import com.paymentSimple.api.UserRequest
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
@@ -32,5 +34,19 @@ class Common {
             updatedAt = Instant.now()
         )
 
+        fun buildTransactionRequest(): TransactionRequest = TransactionRequest(
+            payee = UUID.randomUUID(),
+            payer = UUID.randomUUID(),
+            value = BigDecimal(20)
+        )
+
+        fun buildUserRequest(): UserRequest = UserRequest(
+            firstName = "Teste",
+            lastName = "Teste",
+            document = "123456789",
+            email = "teste@teste.com",
+            password = "password123",
+            type = com.paymentSimple.api.UserType.COMMON
+        )
     }
 }
