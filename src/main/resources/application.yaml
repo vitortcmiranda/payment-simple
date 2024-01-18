@@ -1,4 +1,7 @@
 spring:
+  sql:
+    init:
+      mode: always
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/
     username: postgres

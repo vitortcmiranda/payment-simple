@@ -15,14 +15,14 @@ class Common {
             User(
                 userType = UserType.COMMON,
                 id = UUID.randomUUID(),
-                email = "teste@email.com",
+                email = UUID.randomUUID().toString(),
                 balance = BigDecimal.ZERO,
                 updatedAt = Instant.now(),
                 createdAt = Instant.now(),
                 lastName = "lastName",
                 firstName = "firstName",
                 password = "password",
-                document = "123456789"
+                document = UUID.randomUUID().toString()
             )
 
         fun buildTransaction(): Transactions = Transactions(
