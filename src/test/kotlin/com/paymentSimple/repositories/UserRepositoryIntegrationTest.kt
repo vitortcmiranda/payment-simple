@@ -4,6 +4,7 @@ import com.paymentSimple.Common.Companion.buildUser
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,7 +16,10 @@ import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
 @SpringBootTest
-class UserRepositoryIntegrationTest {
+class UserRepositoryIntegrationTest(
+    @Autowired
+    private val userRepository: UserRepository
+) {
     @Nested
     @TestConfiguration(proxyBeanMethods = false)
     inner class TestPaymentSimpleApplication {
@@ -26,8 +30,13 @@ class UserRepositoryIntegrationTest {
             return PostgreSQLContainer(DockerImageName.parse("postgres:latest"))
         }
 
+        @BeforeEach
+        fun deleteAll() = runBlocking {
+            userRepository.deleteAll()
+        }
+
         @Test
-        fun `should return saved users`(@Autowired userRepository: UserRepository) = runBlocking {
+        fun `should return saved users`() = runBlocking {
             val user = buildUser().copy(id = null, document = "1122334455")
 
             userRepository.save(user)
@@ -38,7 +47,14 @@ class UserRepositoryIntegrationTest {
             assert(result.count() > 0)
             assert(result.filter { it -> it.document == user.document }.count() > 0)
 
+        }
 
+        @Test
+        fun `should return user by document`() = runBlocking {
+            val user = buildUser().copy(id = null, document = "3333333333")
+            userRepository.save(user)
+            val result = userRepository.findByDocument("3333333333")
+            assert(result.block()!!.document == "3333333333")
         }
 
     }
