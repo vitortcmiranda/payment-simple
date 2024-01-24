@@ -4,7 +4,7 @@ import com.paymentSimple.Common.Companion.buildUser
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -30,10 +30,13 @@ class UserRepositoryIntegrationTest(
             return PostgreSQLContainer(DockerImageName.parse("postgres:latest"))
         }
 
-        @BeforeEach
+        @AfterEach
         fun deleteAll() = runBlocking {
             userRepository.deleteAll()
         }
+
+//        @AfterAll
+//        fun deleteAll() = runBlocking { userRepository.deleteAll() }
 
         @Test
         fun `should return saved users`() = runBlocking {
@@ -43,7 +46,6 @@ class UserRepositoryIntegrationTest(
 
             val result = userRepository.findAll()
 
-            println(result)
             assert(result.count() > 0)
             assert(result.filter { it -> it.document == user.document }.count() > 0)
 
