@@ -18,6 +18,7 @@
 - PostgreSQL
 - Flyway(migrations)
 - Docker
+- Redis
 
 <h2 id="started">🚀 Getting started</h2>
 
