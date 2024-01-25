@@ -6,6 +6,7 @@ import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
 import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.external.TransactionValidatorRepository
+import com.paymentSimple.repositories.RedisCacheRepository
 import com.paymentSimple.repositories.TransactionsRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 
 @Service
@@ -23,7 +25,8 @@ class TransactionServiceImpl(
     private val userService: UserService,
     private val transactionsRepository: TransactionsRepository,
     private val transactionValidatorRepository: TransactionValidatorRepository,
-    private val notificationSenderRepository: NotificationSenderRepository
+    private val notificationSenderRepository: NotificationSenderRepository,
+    private val redisCacheRepository: RedisCacheRepository
 ) : TransactionService {
     override suspend fun validateTransaction(transaction: Transactions): List<User> {
         val validations = coroutineScope {
@@ -69,32 +72,58 @@ class TransactionServiceImpl(
 
     @Transactional
     override suspend fun send(transaction: Transactions) =
-        validateTransaction(transaction).let { users ->
-            coroutineScope {
+        hasCachedValue("transaction::${transaction.senderID}::${transaction.amount}").let { cachedValue ->
+            if (cachedValue) {
+                throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Operation already made")
+            }
+            validateTransaction(transaction).let { users ->
+                coroutineScope {
 
-                val saveSender = async {
-                    userService.updateUserBalance(
-                        users[0].copy(
-                            balance = users[0].balance - transaction.amount,
-                            updatedAt = Instant.now()
+                    val saveSender = async {
+                        userService.updateUserBalance(
+                            users[0].copy(
+                                balance = users[0].balance - transaction.amount,
+                                updatedAt = Instant.now()
+                            )
                         )
-                    )
-                }
-                val saveReceiver = async {
-                    userService.updateUserBalance(
-                        users[1].copy(
-                            balance = users[1].balance + transaction.amount,
-                            updatedAt = Instant.now()
+                    }
+                    val saveReceiver = async {
+                        userService.updateUserBalance(
+                            users[1].copy(
+                                balance = users[1].balance + transaction.amount,
+                                updatedAt = Instant.now()
+                            )
                         )
-                    )
+                    }
+                    val saveTransaction = async {
+
+                        launch {
+                            redisCacheRepository.setKey(
+                                "transaction::${transaction.senderID}::${transaction.amount}",
+                                "${transaction.receiverID}",
+                                5,
+                                TimeUnit.MINUTES
+                            )
+                        }
+
+                        transactionsRepository.save(transaction)
+                    }
+
+                    val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
+                    launch { notificationSenderRepository.sendNotification(users) }
+
+                    return@coroutineScope result[2] as Transactions
                 }
-                val saveTransaction = async { transactionsRepository.save(transaction) }
-
-                val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
-                launch { notificationSenderRepository.sendNotification(users) }
-
-                return@coroutineScope result[2] as Transactions
             }
         }
+
+
+    suspend fun hasCachedValue(key: String): Boolean = redisCacheRepository.getKey(key).let {
+        if (it !== null) {
+            return true
+        }
+        return false
+
+    }
 
 }

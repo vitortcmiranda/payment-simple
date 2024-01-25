@@ -49,6 +49,10 @@ dependencies {
     testImplementation("org.testcontainers:r2dbc")
 
 
+    //redis
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+
 
 }
 
