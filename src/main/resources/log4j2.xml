@@ -1,0 +1,12 @@
+<Configuration status="ERROR">
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <AsyncLogger name="STDOUT" level="trace" includeLocation="true">
+            <AppenderRef ref="STDOUT"/>
+        </AsyncLogger>
+    </Loggers>
+</Configuration>
