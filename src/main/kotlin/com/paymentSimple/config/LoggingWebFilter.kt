@@ -2,7 +2,6 @@ package com.paymentSimple.config
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.http.server.reactive.ServerHttpRequest
 import org.springframework.http.server.reactive.ServerHttpResponse
 import org.springframework.web.server.WebFilter
@@ -28,11 +27,6 @@ class LoggingWebFilter {
         println("Request Method: ${request.method}")
         println("Request Path: ${request.path}")
         println("Request Headers: ${request.headers}")
-
-        if (request.method != HttpMethod.GET) {
-            val requestBody = request.body
-            println("Request Body: $requestBody")
-        }
     }
 
     private fun logResponse(request: ServerHttpRequest, response: ServerHttpResponse) {

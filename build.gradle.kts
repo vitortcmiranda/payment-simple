@@ -25,6 +25,13 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    all {
+        exclude(group = "org.springframework.boot", module = "spring-boot-starter-logging")
+        exclude(group = "ch.qos.logback", module = "logback-classic")
+        exclude(group = "org.apache.logging.log4j", module = "log4j-to-slf4j")
+    }
+}
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
@@ -51,6 +58,10 @@ dependencies {
 
     //redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+    // logging
+    implementation("org.springframework.boot:spring-boot-starter-log4j2:3.2.1")
+    implementation("com.lmax:disruptor:3.4.2")
 
 
 
