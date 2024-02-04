@@ -12,6 +12,10 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import mu.KLogger
+import mu.KLogging
+import mu.KotlinLogging
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -26,8 +30,15 @@ class TransactionServiceImpl(
     private val transactionsRepository: TransactionsRepository,
     private val transactionValidatorRepository: TransactionValidatorRepository,
     private val notificationSenderRepository: NotificationSenderRepository,
-    private val redisCacheRepository: RedisCacheRepository
-) : TransactionService {
+    private val redisCacheRepository: RedisCacheRepository,
+
+    ) : TransactionService {
+
+    companion object {
+        private val logger: KLogger = KotlinLogging.logger { TransactionServiceImpl::class.java }
+    }
+
+
     override suspend fun validateTransaction(transaction: Transactions): List<User> {
         val validations = coroutineScope {
             val receiver = async { userService.findUserById(transaction.receiverID) }
@@ -39,7 +50,14 @@ class TransactionServiceImpl(
         }
 
         val externalApproval: Boolean = (validations[2] as MessageApproval) === MessageApproval.Autorizado
-        if (!externalApproval) {
+        if (externalApproval) {
+
+            logger.error(
+                "Transaction not allowed for sender {} with amount {} for destiny {}",
+                transaction.senderID,
+                transaction.amount,
+                transaction.receiverID
+            )
             throw ResponseStatusException(
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "Transaction Not Allowed by external approval"
@@ -61,11 +79,14 @@ class TransactionServiceImpl(
         val isMerchantUser = sender.userType === UserType.MERCHANT
         val hasLessBalanceThanTransaction = sender.balance < transaction.amount
         if (isMerchantUser) {
+            logger.error { "Merchant user not allowed to send money" }
             throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Merchant user not allowed to send money")
         }
         if (hasLessBalanceThanTransaction) {
+            logger.error { "User doesn't have sufficient funds" }
             throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "User doesn't have sufficient funds")
         }
+        logger.info("Sender validated for transaction id: ${transaction.id}, senderId: ${sender.id}")
         return sender
 
     }
@@ -74,6 +95,7 @@ class TransactionServiceImpl(
     override suspend fun send(transaction: Transactions) =
         hasCachedValue("transaction::${transaction.senderID}::${transaction.amount}").let { cachedValue ->
             if (cachedValue) {
+                logger.error { "Operation already made" }
                 throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Operation already made")
             }
             validateTransaction(transaction).let { users ->

@@ -24,14 +24,14 @@ class LoggingWebFilter {
     }
 
     private fun logRequest(request: ServerHttpRequest) {
-        println("Request Method: ${request.method}")
-        println("Request Path: ${request.path}")
-        println("Request Headers: ${request.headers}")
+//        println("Request Method: ${request.method}")
+//        println("Request Path: ${request.path}")
+//        println("Request Headers: ${request.headers}")
     }
 
     private fun logResponse(request: ServerHttpRequest, response: ServerHttpResponse) {
-        println("Response Status Code: ${response.statusCode}")
-        println("Response Headers: ${response.headers}")
+//        println("Response Status Code: ${response.statusCode}")
+//        println("Response Headers: ${response.headers}")
 
     }
 }

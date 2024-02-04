@@ -62,7 +62,8 @@ dependencies {
     // logging
     implementation("org.springframework.boot:spring-boot-starter-log4j2:3.2.1")
     implementation("com.lmax:disruptor:3.4.2")
-
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
+    implementation("io.github.microutils:kotlin-logging-jvm:2.0.11")
 
 
 }
