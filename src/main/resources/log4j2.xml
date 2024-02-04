@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO" monitorInterval="30" shutdownHook="disable">
+    <Appenders>
+        <Console name="CONSOLE" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t]
+      %highlight{%level}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=green, DEBUG=blue} - %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <AsyncRoot level="INFO" additivity="false">
+            <AppenderRef ref="CONSOLE"/>
+        </AsyncRoot>
+        <AsyncLogger name="org.springframework" level="INFO"/>
+    </Loggers>
+</Configuration>
