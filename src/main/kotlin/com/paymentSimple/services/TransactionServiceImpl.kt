@@ -4,6 +4,7 @@ import com.paymentSimple.api.MessageApproval
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
+import com.paymentSimple.exceptions.TransactionNotAllowedException
 import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.external.TransactionValidatorRepository
 import com.paymentSimple.repositories.RedisCacheRepository
@@ -51,17 +52,7 @@ class TransactionServiceImpl(
 
         val externalApproval: Boolean = (validations[2] as MessageApproval) === MessageApproval.Autorizado
         if (externalApproval) {
-
-            logger.error(
-                "Transaction not allowed for sender {} with amount {} for destiny {}",
-                transaction.senderID,
-                transaction.amount,
-                transaction.receiverID
-            )
-            throw ResponseStatusException(
-                HttpStatus.METHOD_NOT_ALLOWED,
-                "Transaction Not Allowed by external approval"
-            )
+            throw TransactionNotAllowedException( "Transaction not allowed for sender ${transaction.senderID} with amount ${transaction.amount} for destiny ${transaction.receiverID}")
         }
 
 
