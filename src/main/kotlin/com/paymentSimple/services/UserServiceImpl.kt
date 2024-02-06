@@ -2,6 +2,8 @@ package com.paymentSimple.services
 
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
+import com.paymentSimple.exceptions.UserAlreadyExists
+import com.paymentSimple.exceptions.UserNotFoundException
 import com.paymentSimple.repositories.UserRepository
 import kotlinx.coroutines.reactor.awaitSingleOrNull
 import mu.KLogger
@@ -24,14 +26,15 @@ class UserServiceImpl(
     }
 
     override suspend fun createUser(user: User): User =
-        userRepository.save(user).also { logger.info { "Creating user for $user" } }
+        userRepository.findByDocument(user.document).awaitSingleOrNull()?.let { throw UserAlreadyExists() }
+            ?: userRepository.save(user).also { logger.info { "Creating user for $user" } }
 
 
     override suspend fun findUserById(id: UUID): User? =
-        userRepository.findById(id).also { logger.info { "Finding user by id : $id" } }
+        userRepository.findById(id).also { logger.info { "Finding user by id : $id" } } ?: throw UserNotFoundException()
 
     override suspend fun findUserByIdAndType(id: UUID, type: UserType): User? =
-        userRepository.findByIdAndType(id, type).awaitSingleOrNull()
+        userRepository.findByIdAndType(id, type).awaitSingleOrNull() ?: throw UserNotFoundException()
             .also { logger.info { "Finding user by id and type, :$id $type" } }
 
 
