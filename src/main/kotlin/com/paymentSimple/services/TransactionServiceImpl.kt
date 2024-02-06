@@ -4,6 +4,8 @@ import com.paymentSimple.api.MessageApproval
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.domain.user.User
 import com.paymentSimple.domain.user.UserType
+import com.paymentSimple.exceptions.TransactionNotAllowedException
+import com.paymentSimple.exceptions.UserNotFoundException
 import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.external.TransactionValidatorRepository
 import com.paymentSimple.repositories.RedisCacheRepository
@@ -13,13 +15,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import mu.KLogger
-import mu.KLogging
 import mu.KotlinLogging
-import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -50,18 +48,8 @@ class TransactionServiceImpl(
         }
 
         val externalApproval: Boolean = (validations[2] as MessageApproval) === MessageApproval.Autorizado
-        if (externalApproval) {
-
-            logger.error(
-                "Transaction not allowed for sender {} with amount {} for destiny {}",
-                transaction.senderID,
-                transaction.amount,
-                transaction.receiverID
-            )
-            throw ResponseStatusException(
-                HttpStatus.METHOD_NOT_ALLOWED,
-                "Transaction Not Allowed by external approval"
-            )
+        if (!externalApproval) {
+            throw TransactionNotAllowedException("Transaction not allowed by external approval for sender ${transaction.senderID} with amount ${transaction.amount} for destiny ${transaction.receiverID}")
         }
 
 
@@ -72,19 +60,14 @@ class TransactionServiceImpl(
     private suspend fun validateSender(transaction: Transactions): User {
         val sender =
             userService.findUserByIdAndType(transaction.senderID, UserType.COMMON)
-                ?: throw ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "User not found"
-                )
+                ?: throw UserNotFoundException()
         val isMerchantUser = sender.userType === UserType.MERCHANT
         val hasLessBalanceThanTransaction = sender.balance < transaction.amount
         if (isMerchantUser) {
-            logger.error { "Merchant user not allowed to send money" }
-            throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Merchant user not allowed to send money")
+            throw TransactionNotAllowedException("Merchant user not allowed to send money, id: ${sender.id}")
         }
         if (hasLessBalanceThanTransaction) {
-            logger.error { "User doesn't have sufficient funds" }
-            throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "User doesn't have sufficient funds")
+            throw TransactionNotAllowedException("User ${sender.id} doesn't have sufficient funds, total amount: ${sender.balance}")
         }
         logger.info("Sender validated for transaction id: ${transaction.id}, senderId: ${sender.id}")
         return sender
@@ -95,8 +78,7 @@ class TransactionServiceImpl(
     override suspend fun send(transaction: Transactions) =
         hasCachedValue("transaction::${transaction.senderID}::${transaction.amount}").let { cachedValue ->
             if (cachedValue) {
-                logger.error { "Operation already made" }
-                throw ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Operation already made")
+                throw TransactionNotAllowedException("Operation already made [sender,amount,destination] : [${transaction.senderID},${transaction.amount}, ${transaction.receiverID}]")
             }
             validateTransaction(transaction).let { users ->
                 coroutineScope {
