@@ -1,24 +1,15 @@
 package com.paymentSimple.services
 
-import com.paymentSimple.api.MessageApproval
 import com.paymentSimple.domain.transaction.Transactions
-import com.paymentSimple.domain.user.User
-import com.paymentSimple.domain.user.UserType
-import com.paymentSimple.exceptions.TransactionNotAllowedException
-import com.paymentSimple.exceptions.UserNotFoundException
 import com.paymentSimple.external.NotificationSenderRepository
-import com.paymentSimple.external.TransactionValidatorRepository
 import com.paymentSimple.repositories.RedisCacheRepository
 import com.paymentSimple.repositories.TransactionsRepository
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import mu.KLogger
 import mu.KotlinLogging
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 
@@ -26,108 +17,44 @@ import java.util.concurrent.TimeUnit
 class TransactionServiceImpl(
     private val userService: UserService,
     private val transactionsRepository: TransactionsRepository,
-    private val transactionValidatorRepository: TransactionValidatorRepository,
     private val notificationSenderRepository: NotificationSenderRepository,
     private val redisCacheRepository: RedisCacheRepository,
-
-    ) : TransactionService {
+    private val validations: Validations,
+) : TransactionService {
 
     companion object {
         private val logger: KLogger = KotlinLogging.logger { TransactionServiceImpl::class.java }
     }
 
-
-    override suspend fun validateTransaction(transaction: Transactions): List<User> {
-        val validations = coroutineScope {
-            val receiver = async { userService.findUserById(transaction.receiverID) }
-            val sender = async { validateSender(transaction) }
-            val approvalResponse =
-                async { transactionValidatorRepository.validateTransaction(transaction)!!.message }
-
-            awaitAll(receiver, sender, approvalResponse)
-        }
-
-        val externalApproval: Boolean = (validations[2] as MessageApproval) === MessageApproval.Autorizado
-        if (!externalApproval) {
-            throw TransactionNotAllowedException("Transaction not allowed by external approval for sender ${transaction.senderID} with amount ${transaction.amount} for destiny ${transaction.receiverID}")
-        }
-
-
-        return listOf(validations[0] as User, validations[1] as User)
-
-    }
-
-    private suspend fun validateSender(transaction: Transactions): User {
-        val sender =
-            userService.findUserByIdAndType(transaction.senderID, UserType.COMMON)
-                ?: throw UserNotFoundException()
-        val isMerchantUser = sender.userType === UserType.MERCHANT
-        val hasLessBalanceThanTransaction = sender.balance < transaction.amount
-        if (isMerchantUser) {
-            throw TransactionNotAllowedException("Merchant user not allowed to send money, id: ${sender.id}")
-        }
-        if (hasLessBalanceThanTransaction) {
-            throw TransactionNotAllowedException("User ${sender.id} doesn't have sufficient funds, total amount: ${sender.balance}")
-        }
-        logger.info("Sender validated for transaction id: ${transaction.id}, senderId: ${sender.id}")
-        return sender
-
-    }
-
     @Transactional
-    override suspend fun send(transaction: Transactions) =
-        hasCachedValue("transaction::${transaction.senderID}::${transaction.amount}").let { cachedValue ->
-            if (cachedValue) {
-                throw TransactionNotAllowedException("Operation already made [sender,amount,destination] : [${transaction.senderID},${transaction.amount}, ${transaction.receiverID}]")
-            }
-            validateTransaction(transaction).let { users ->
-                coroutineScope {
+    override suspend fun send(transaction: Transactions): Transactions = coroutineScope {
+        val transactionValidated = validations.execute(transaction)
 
-                    val saveSender = async {
-                        userService.updateUserBalance(
-                            users[0].copy(
-                                balance = users[0].balance - transaction.amount,
-                                updatedAt = Instant.now()
-                            )
-                        )
-                    }
-                    val saveReceiver = async {
-                        userService.updateUserBalance(
-                            users[1].copy(
-                                balance = users[1].balance + transaction.amount,
-                                updatedAt = Instant.now()
-                            )
-                        )
-                    }
-                    val saveTransaction = async {
 
-                        launch {
-                            redisCacheRepository.setKey(
-                                "transaction::${transaction.senderID}::${transaction.amount}",
-                                "${transaction.receiverID}",
-                                5,
-                                TimeUnit.MINUTES
-                            )
-                        }
+        val sender =
+            userService.updateUserBalance(transactionValidated.sender.copy(balance = transactionValidated.sender.balance - transaction.amount))
+        val receiver =
+            userService.updateUserBalance(transactionValidated.receiver.copy(balance = transactionValidated.receiver.balance + transaction.amount))
+        transactionsRepository.save(transaction)
 
-                        transactionsRepository.save(transaction)
-                    }
-
-                    val result = listOf(saveSender, saveReceiver, saveTransaction).awaitAll()
-                    launch { notificationSenderRepository.sendNotification(users) }
-
-                    return@coroutineScope result[2] as Transactions
-                }
-            }
+        launch {
+            redisCacheRepository.setKey(
+                "transaction::${transaction.senderID}::${transaction.amount}",
+                "${transaction.receiverID}",
+                5,
+                TimeUnit.MINUTES
+            )
+            notificationSenderRepository.sendNotification(
+                listOf(
+                    sender,
+                    receiver
+                )
+            )
+            logger.info { "Transaction made by ${transaction.senderID} for ${transaction.receiverID} with amount: ${transaction.amount}" }
         }
 
 
-    suspend fun hasCachedValue(key: String): Boolean = redisCacheRepository.getKey(key).let {
-        if (it !== null) {
-            return true
-        }
-        return false
-
+        return@coroutineScope transaction
     }
 
 }
