@@ -25,10 +25,6 @@ class ValidationsServiceImpl(
 
     ) : Validations {
 
-    companion object {
-        private val logger: KLogger = KotlinLogging.logger { ValidationsServiceImpl::class.java }
-    }
-
     private suspend fun isValidSender(senderId: UUID, amount: BigDecimal): User {
         val sender = userService.findUserById(senderId) ?: throw UserNotFoundException()
         if (sender.userType === UserType.MERCHANT) {

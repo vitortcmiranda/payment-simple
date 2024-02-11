@@ -2,6 +2,8 @@ package com.paymentSimple.services
 
 import com.paymentSimple.Common.Companion.buildUser
 import com.paymentSimple.domain.user.User
+import com.paymentSimple.exceptions.TransactionNotAllowedException
+import com.paymentSimple.exceptions.UserNotFoundException
 import com.paymentSimple.repositories.UserRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,6 +51,7 @@ class UserServiceTests {
     @Test
     fun `should save the user`() = runTest {
         val userToSave = buildUser()
+        coEvery { userRepository.findByDocument(any()) } returns Mono.empty()
         coEvery { userRepository.save(userToSave) } returns userToSave
         val result = userService.createUser(userToSave)
 
@@ -59,8 +62,9 @@ class UserServiceTests {
     @Test
     fun `should return empty when no user was found by id`() = runBlocking {
         coEvery { userRepository.findById(any()) } returns null
-        val result = userService.findUserById(UUID.randomUUID())
-        assertNull(result, "Result should be null when user is not found")
+        assertThrows<UserNotFoundException> {
+            runBlocking { userService.findUserById(UUID.randomUUID()) }
+        }
         coVerify(exactly = 1) { userRepository.findById(any()) }
     }
 
@@ -95,42 +99,16 @@ class UserServiceTests {
         coVerify(exactly = 1) { userRepository.save(expected) }
     }
 
-    @Test
-    fun `should return user by type`() = runBlocking {
-        val user = buildUser()
-        coEvery { userRepository.findByIdAndType(user.id!!, user.userType) } returns Mono.just(user)
-
-        val result = userService.findUserByIdAndType(user.id!!, user.userType)
-
-        assertEquals(user, result)
-        coVerify(exactly = 1) {
-            userRepository.findByIdAndType(user.id!!, user.userType)
-        }
-
-    }
-
-    @Test
-    fun `should return null when no user by type was found`() = runBlocking {
-        val user = buildUser()
-        coEvery { userRepository.findByIdAndType(user.id!!, user.userType) } returns Mono.empty<User>()
-
-        val result = userService.findUserByIdAndType(user.id!!, user.userType)
-
-        assertEquals(null, result)
-        coVerify(exactly = 1) {
-            userRepository.findByIdAndType(user.id!!, user.userType)
-        }
-
-    }
 
     @Test
     fun `should return null when no user was found by id`() = runBlocking {
         val user = buildUser()
         coEvery { userRepository.findById(user.id!!) } returns null
 
-        val result = userService.findUserById(user.id!!)
+        assertThrows<UserNotFoundException> {
+            runBlocking { userService.findUserById(user.id!!) }
+        }
 
-        assertEquals(null, result)
         coVerify(exactly = 1) {
             userRepository.findById(user.id!!)
         }

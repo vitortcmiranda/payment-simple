@@ -33,11 +33,6 @@ class UserServiceImpl(
     override suspend fun findUserById(id: UUID): User? =
         userRepository.findById(id).also { logger.info { "Finding user by id : $id" } } ?: throw UserNotFoundException()
 
-    override suspend fun findUserByIdAndType(id: UUID, type: UserType): User? =
-        userRepository.findByIdAndType(id, type).awaitSingleOrNull() ?: throw UserNotFoundException()
-            .also { logger.info { "Finding user by id and type, :$id $type" } }
-
-
     override suspend fun updateUserBalance(user: User): User =
         userRepository.save(user).also {
             logger.info {

@@ -54,7 +54,7 @@ class TransactionServiceImpl(
     }
 
     @Transactional
-    suspend fun executeTransaction(transactionValidated: TransactionValidation) = try {
+    private suspend fun executeTransaction(transactionValidated: TransactionValidation) = try {
         userService.updateUserBalance(transactionValidated.sender.copy(balance = transactionValidated.sender.balance - transactionValidated.amount))
         userService.updateUserBalance(transactionValidated.receiver.copy(balance = transactionValidated.receiver.balance + transactionValidated.amount))
         transactionsRepository.save(
