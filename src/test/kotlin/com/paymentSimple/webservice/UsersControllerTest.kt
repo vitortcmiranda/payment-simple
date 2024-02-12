@@ -73,7 +73,7 @@ class UserControllerTests(
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(userRequest)
             .exchange()
-            .expectStatus().is5xxServerError
+            .expectStatus().is4xxClientError
 
     }
 }
