@@ -53,7 +53,7 @@ class ControllerAdvice {
     fun handleTransactionUnexpectedError(ex: TransactionUnexpectedErrorException) =
         ResponseEntity(
             ErrorResponse(
-                httpCode = HttpStatus.BAD_REQUEST.value(),
+                httpCode = HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 message = ex.message!!,
                 errors = null,
                 internalCode = null
