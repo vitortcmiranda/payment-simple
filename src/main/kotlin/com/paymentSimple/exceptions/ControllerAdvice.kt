@@ -49,4 +49,15 @@ class ControllerAdvice {
         ), HttpStatus.BAD_REQUEST
     ).also { logger.error { ex.message } }
 
+    @ExceptionHandler(TransactionUnexpectedErrorException::class)
+    fun handleTransactionUnexpectedError(ex: TransactionUnexpectedErrorException) =
+        ResponseEntity(
+            ErrorResponse(
+                httpCode = HttpStatus.BAD_REQUEST.value(),
+                message = ex.message!!,
+                errors = null,
+                internalCode = null
+            ), HttpStatus.INTERNAL_SERVER_ERROR
+        ).also { logger.error { ex.message } }
+
 }

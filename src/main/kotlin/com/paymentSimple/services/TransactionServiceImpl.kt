@@ -2,6 +2,7 @@ package com.paymentSimple.services
 
 import com.paymentSimple.domain.transaction.Transactions
 import com.paymentSimple.dto.TransactionValidation
+import com.paymentSimple.exceptions.TransactionUnexpectedErrorException
 import com.paymentSimple.external.NotificationSenderRepository
 import com.paymentSimple.repositories.RedisCacheRepository
 import com.paymentSimple.repositories.TransactionsRepository
@@ -30,7 +31,12 @@ class TransactionServiceImpl(
 
     override suspend fun send(transaction: Transactions): Transactions = coroutineScope {
         val transactionValidated = validations.execute(transaction)
-        executeTransaction(transactionValidated)
+
+        try {
+            executeTransaction(transactionValidated)
+        }catch (ex: Exception){
+            throw TransactionUnexpectedErrorException()
+        }
 
 
         launch {
@@ -54,7 +60,7 @@ class TransactionServiceImpl(
     }
 
     @Transactional
-    private suspend fun executeTransaction(transactionValidated: TransactionValidation) = try {
+    private suspend fun executeTransaction(transactionValidated: TransactionValidation) {
         userService.updateUserBalance(transactionValidated.sender.copy(balance = transactionValidated.sender.balance - transactionValidated.amount))
         userService.updateUserBalance(transactionValidated.receiver.copy(balance = transactionValidated.receiver.balance + transactionValidated.amount))
         transactionsRepository.save(
@@ -66,8 +72,6 @@ class TransactionServiceImpl(
                 createdAt = Instant.now()
             )
         )
-    } catch (ex: Exception) {
-        logger.error { "Error while executing transaction" }
-    }
 
+    }
 }
